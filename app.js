@@ -1,60 +1,69 @@
-const createError = require('http-errors');
-const express = require('express');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const logger = require('morgan');
-const cors = require('cors')
-const session = require('express-session')
+const Koa = require('koa')
+const cors = require('@koa/cors');
+const app = new Koa()
+const views = require('koa-views')
+const json = require('koa-json')
+const onerror = require('koa-onerror')
+const bodyparser = require('koa-bodyparser')
+const logger = require('koa-logger')
+const api = require('./routes/api')
+const Utils = require('./utils');
+const Tips = require('./utils/tip');
 
+app.use(cors());
 
-const indexRouter = require('./routes/index');
-const userRouter = require('./routes/user');
-
-const app = express();
-
-// 设置允许跨域
-app.use(cors())
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
-
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use(session({
-  secret: 'hichankServer', // 加密字符串
-  // name: 'connect.sid', // 保存在本地的session名称 默认:connect.sid
-  resave: false, // 强制保存session
-  saveUninitialized: true, // 强制将未初始化的session存储
-  rolling: true, // 每次请求是否强行重置cookie过期时间
-  cookie: {
-    // maxAge: 1000, // 过期时间
-    // secure: true, //是否只允许https访问
+// token验证
+app.use(async (ctx, next) => {
+  let { url } = ctx
+  if (url.indexOf('/api/user/') === -1) {
+    // 需要验证token
+    let { authorization } = ctx.request.header
+    if (authorization) {
+      let result = Utils.verifyToken(authorization);
+      let { uid } = result
+      if (uid) {
+        await next()
+      } else {
+        return ctx.body = Tips[404]
+      }
+    } else {
+      return ctx.body = Tips[404]
+    }
+  } else {
+    await next()
   }
-}))
-
-
-app.use('/', indexRouter);
-app.use('/user', userRouter);
-
-// catch 404 and forward to error handler
-app.use((req, res, next) => {
-  next(createError(404));
 });
+
 
 // error handler
-app.use((err, req, res, next) => {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+onerror(app)
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
+// middlewares
+app.use(bodyparser({
+  enableTypes: ['json', 'form', 'text']
+}))
+app.use(json())
+app.use(logger())
+app.use(require('koa-static')(__dirname + '/public'))
+
+app.use(views(__dirname + '/views', {
+  extension: 'pug'
+}))
+
+// logger
+app.use(async (ctx, next) => {
+  const start = new Date()
+  await next()
+  const ms = new Date() - start
+  console.log(`${ctx.method} ${ctx.url} - ${ms}ms`)
+})
+
+// routes
+app.use(api.routes(), api.allowedMethods())
+
+// error-handling
+app.on('error', (err, ctx) => {
+  console.error('server error', err, ctx)
 });
 
-module.exports = app;
+module.exports = app
