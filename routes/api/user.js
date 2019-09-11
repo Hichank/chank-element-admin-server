@@ -53,21 +53,15 @@ router.post('/api/login', async (ctx, next) => {
 // 用户信息
 router.get('/api/user/info', async (ctx, next) => {
     let { uid } = ctx.state || {};
-    await Db.find('users', uid)
-        .then(res => {
-            if (res && res.length > 0) {
-                delete res[0].password;
-                ctx.body = {
-                    ...Tips[200],
-                    data: res[0]
-                }
-            } else {
-                ctx.body = Tips[404]
-            }
-        })
-        .catch(err => {
-            ctx.body = Tips[500]
-        })
+    if (uid) {
+        delete uid.password;
+        ctx.body = {
+            ...Tips[200],
+            data: uid
+        }
+    } else {
+        ctx.body = Tips[404]
+    }
 })
 
 module.exports = router
