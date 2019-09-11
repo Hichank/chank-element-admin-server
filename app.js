@@ -9,25 +9,27 @@ const logger = require('koa-logger')
 const api = require('./routes/api')
 const Utils = require('./utils');
 const Tips = require('./utils/tip');
+const router = require('./routes/api')
 
 app.use(cors());
 
 // token验证
 app.use(async (ctx, next) => {
   let { url } = ctx
-  if (url.indexOf('/api/user/') === -1) {
+  if (url.indexOf('/api/user/') > -1) {
     // 需要验证token
     let { authorization } = ctx.request.header
     if (authorization) {
       let result = Utils.verifyToken(authorization);
       let { uid } = result
       if (uid) {
+        ctx.state = { uid };
         await next()
       } else {
-        return ctx.body = Tips[404]
+        return ctx.body = Tips[403]
       }
     } else {
-      return ctx.body = Tips[404]
+      return ctx.body = Tips[401]
     }
   } else {
     await next()
@@ -59,7 +61,7 @@ app.use(async (ctx, next) => {
 })
 
 // routes
-app.use(api.routes(), api.allowedMethods())
+router(app)
 
 // error-handling
 app.on('error', (err, ctx) => {

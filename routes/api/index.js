@@ -1,9 +1,5 @@
-const router = require('koa-router')()
+const user = require('./user');
 
-
-const user = require("./user")
-
-router.prefix('/api')
-router.use('/user', user.routes());
-
-module.exports = router
+module.exports = function (app) {
+    app.use(user.routes()).use(user.allowedMethods());
+}
