@@ -35,7 +35,7 @@ router.post('/api/login', async (ctx, next) => {
     await Db.find('users', { email, password })
         .then(res => {
             if (res && res.length > 0) {
-                let uid = res[0]['_id'];
+                let uid = res[0];
                 let token = Utils.generateToken({ uid });
                 ctx.body = {
                     ...Tips[200],
